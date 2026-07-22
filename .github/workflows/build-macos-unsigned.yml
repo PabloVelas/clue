@@ -32,18 +32,33 @@ jobs:
       - name: Install dependencies
         run: npm ci
 
-      - name: Build app
-        run: |
-          set -euo pipefail
-          npm run build
-          npm run typecheck:electron
-          npm run build:electron
-          NATIVELY_BUILD_ALL_MAC_ARCHES=1 npm run build:native
-          node scripts/ensure-sharp-mac-deps.js
-          node scripts/ensure-sqlite-vec.js
-          npm run verify:packaged-local-assets
-          ./node_modules/.bin/electron-builder --mac --publish never
-          node scripts/rebuild-native-electron.js
+      - name: Build renderer
+        run: npm run build
+
+      - name: Typecheck Electron
+        run: npm run typecheck:electron
+
+      - name: Build Electron
+        run: npm run build:electron
+
+      - name: Build native module
+        run: NATIVELY_BUILD_ALL_MAC_ARCHES=1 npm run build:native
+
+      - name: Ensure Sharp macOS dependencies
+        run: node scripts/ensure-sharp-mac-deps.js
+
+      - name: Ensure sqlite-vec packages
+        run: node scripts/ensure-sqlite-vec.js
+
+      - name: Verify packaged local assets
+        run: npm run verify:packaged-local-assets
+
+      - name: Package unsigned macOS app
+        run: ./node_modules/.bin/electron-builder --mac --publish never
+
+      - name: Restore development native addons
+        if: always()
+        run: node scripts/rebuild-native-electron.js
 
       - name: Verify artifacts exist
         run: |
