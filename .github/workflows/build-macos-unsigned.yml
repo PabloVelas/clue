@@ -1,0 +1,59 @@
+name: Build macOS unsigned artifacts
+
+on:
+  workflow_dispatch:
+
+jobs:
+  build-macos-unsigned:
+    name: Build unsigned macOS DMG/ZIP
+    runs-on: macos-14
+    timeout-minutes: 90
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          submodules: recursive
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - name: Setup Rust
+        uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: x86_64-apple-darwin,aarch64-apple-darwin
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Build app
+        run: |
+          set -euo pipefail
+          npm run build
+          npm run typecheck:electron
+          npm run build:electron
+          NATIVELY_BUILD_ALL_MAC_ARCHES=1 npm run build:native
+          node scripts/ensure-sharp-mac-deps.js
+          node scripts/ensure-sqlite-vec.js
+          npm run verify:packaged-local-assets
+          ./node_modules/.bin/electron-builder --mac --publish never
+          node scripts/rebuild-native-electron.js
+
+      - name: Verify artifacts exist
+        run: |
+          set -euo pipefail
+          ls -lah release
+          test -n "$(find release -maxdepth 1 \( -name '*.dmg' -o -name '*.zip' \) -print -quit)"
+
+      - name: Upload unsigned macOS artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: natively-macos-unsigned
+          path: |
+            release/*.dmg
+            release/*.zip
+            release/latest-mac.yml
+          if-no-files-found: error
