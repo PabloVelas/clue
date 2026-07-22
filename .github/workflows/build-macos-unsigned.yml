@@ -1,6 +1,9 @@
 name: Build macOS unsigned artifacts
 
 on:
+  push:
+    branches:
+      - main
   workflow_dispatch:
 
 jobs:
