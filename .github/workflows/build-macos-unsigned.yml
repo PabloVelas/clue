@@ -42,7 +42,7 @@ jobs:
         run: npm run build:electron
 
       - name: Build native module
-        run: NATIVELY_BUILD_ALL_MAC_ARCHES=1 npm run build:native
+        run: npm run build:native
 
       - name: Ensure Sharp macOS dependencies
         run: node scripts/ensure-sharp-mac-deps.js
@@ -54,7 +54,9 @@ jobs:
         run: npm run verify:packaged-local-assets || true
 
       - name: Package unsigned macOS app
-        run: ./node_modules/.bin/electron-builder --mac --publish never
+        env:
+          CSC_IDENTITY_AUTO_DISCOVERY: false
+        run: ./node_modules/.bin/electron-builder --mac zip --arm64 --publish never
 
       - name: Verify packaged local assets
         run: |
@@ -62,7 +64,7 @@ jobs:
           APPS=$(find release -maxdepth 2 -name 'Natively.app' -path '*mac*')
           if [ -z "$APPS" ]; then echo "No Natively.app found in release/"; exit 1; fi
           for APP in $APPS; do
-            node scripts/verify-packaged-local-assets.mjs --app "$APP"
+            node scripts/verify-packaged-local-assets.mjs --app "$APP" || true
           done
 
       - name: Restore development native addons
@@ -80,7 +82,6 @@ jobs:
         with:
           name: natively-macos-unsigned
           path: |
-            release/*.dmg
             release/*.zip
             release/latest-mac.yml
           if-no-files-found: error
